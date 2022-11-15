@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package org.springframework.test.web.client;
 
 import java.net.SocketException;
+import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,7 @@ import org.springframework.test.web.client.MockRestServiceServer.MockRestService
 import org.springframework.web.client.RestTemplate;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.ExpectedCount.once;
@@ -36,13 +38,13 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
  *
  * @author Rossen Stoyanchev
  */
-public class MockRestServiceServerTests {
+class MockRestServiceServerTests {
 
 	private final RestTemplate restTemplate = new RestTemplate();
 
 
 	@Test
-	public void buildMultipleTimes() {
+	void buildMultipleTimes() {
 		MockRestServiceServerBuilder builder = MockRestServiceServer.bindTo(this.restTemplate);
 
 		MockRestServiceServer server = builder.build();
@@ -64,7 +66,7 @@ public class MockRestServiceServerTests {
 	}
 
 	@Test
-	public void exactExpectOrder() {
+	void exactExpectOrder() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.restTemplate)
 				.ignoreExpectOrder(false).build();
 
@@ -75,7 +77,7 @@ public class MockRestServiceServerTests {
 	}
 
 	@Test
-	public void ignoreExpectOrder() {
+	void ignoreExpectOrder() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.restTemplate)
 				.ignoreExpectOrder(true).build();
 
@@ -87,7 +89,7 @@ public class MockRestServiceServerTests {
 	}
 
 	@Test
-	public void resetAndReuseServer() {
+	void resetAndReuseServer() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.restTemplate).build();
 
 		server.expect(requestTo("/foo")).andRespond(withSuccess());
@@ -101,7 +103,7 @@ public class MockRestServiceServerTests {
 	}
 
 	@Test
-	public void resetAndReuseServerWithUnorderedExpectationManager() {
+	void resetAndReuseServerWithUnorderedExpectationManager() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.restTemplate)
 				.ignoreExpectOrder(true).build();
 
@@ -118,7 +120,7 @@ public class MockRestServiceServerTests {
 	}
 
 	@Test  // gh-24486
-	public void resetClearsRequestFailures() {
+	void resetClearsRequestFailures() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.restTemplate).build();
 		server.expect(once(), requestTo("/remoteurl")).andRespond(withSuccess());
 		this.restTemplate.postForEntity("/remoteurl", null, String.class);
@@ -136,7 +138,7 @@ public class MockRestServiceServerTests {
 	}
 
 	@Test  // SPR-16132
-	public void followUpRequestAfterFailure() {
+	void followUpRequestAfterFailure() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.restTemplate).build();
 
 		server.expect(requestTo("/some-service/some-endpoint"))
@@ -157,7 +159,7 @@ public class MockRestServiceServerTests {
 	}
 
 	@Test  // gh-21799
-	public void verifyShouldFailIfRequestsFailed() {
+	void verifyShouldFailIfRequestsFailed() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.restTemplate).build();
 		server.expect(once(), requestTo("/remoteurl")).andRespond(withSuccess());
 
@@ -169,6 +171,30 @@ public class MockRestServiceServerTests {
 		assertThatExceptionOfType(AssertionError.class)
 				.isThrownBy(server::verify)
 				.withMessageStartingWith("Some requests did not execute successfully");
+	}
+
+	@Test
+	void verifyWithTimeout() {
+		MockRestServiceServerBuilder builder = MockRestServiceServer.bindTo(this.restTemplate);
+
+		MockRestServiceServer server1 = builder.build();
+		server1.expect(requestTo("/foo")).andRespond(withSuccess());
+		server1.expect(requestTo("/bar")).andRespond(withSuccess());
+		this.restTemplate.getForObject("/foo", Void.class);
+
+		assertThatThrownBy(() -> server1.verify(Duration.ofMillis(100))).hasMessage("""
+				Further request(s) expected leaving 1 unsatisfied expectation(s).
+				1 request(s) executed:
+				GET /foo, headers: [Accept:"application/json, application/*+json"]
+				""");
+
+		MockRestServiceServer server2 = builder.build();
+		server2.expect(requestTo("/foo")).andRespond(withSuccess());
+		server2.expect(requestTo("/bar")).andRespond(withSuccess());
+		this.restTemplate.getForObject("/foo", Void.class);
+		this.restTemplate.getForObject("/bar", Void.class);
+
+		server2.verify(Duration.ofMillis(100));
 	}
 
 }

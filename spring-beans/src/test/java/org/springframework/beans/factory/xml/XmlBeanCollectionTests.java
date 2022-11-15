@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2020 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -283,7 +283,7 @@ public class XmlBeanCollectionTests {
 		Iterator it = hasMap.getSet().iterator();
 		assertThat(it.next()).isEqualTo("bar");
 		assertThat(it.next()).isEqualTo(jenny);
-		assertThat(it.next()).isEqualTo(null);
+		assertThat(it.next()).isNull();
 	}
 
 	@Test
@@ -332,9 +332,9 @@ public class XmlBeanCollectionTests {
 	public void testIntegerArray() throws Exception {
 		HasMap hasMap = (HasMap) this.beanFactory.getBean("integerArray");
 		assertThat(hasMap.getIntegerArray().length == 3).isTrue();
-		assertThat(hasMap.getIntegerArray()[0].intValue() == 0).isTrue();
-		assertThat(hasMap.getIntegerArray()[1].intValue() == 1).isTrue();
-		assertThat(hasMap.getIntegerArray()[2].intValue() == 2).isTrue();
+		assertThat(hasMap.getIntegerArray()[0] == 0).isTrue();
+		assertThat(hasMap.getIntegerArray()[1] == 1).isTrue();
+		assertThat(hasMap.getIntegerArray()[2] == 2).isTrue();
 	}
 
 	@Test
